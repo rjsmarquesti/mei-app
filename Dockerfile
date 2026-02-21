@@ -12,13 +12,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Gera o "tradutor" do banco de dados
+# 1. Gera o cliente do Prisma (O "tradutor" do banco)
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_OUTPUT_MODE=standalone
 
-# Constrói o site (agora com as rotas em 'force-dynamic' não deve dar erro)
+# 2. Constrói o site (O Next.js vai ignorar as APIs por causa do force-dynamic)
 RUN npm run build
 
 FROM base AS runner
@@ -29,11 +29,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# --- AS LINHAS MÁGICAS PARA O PRISMA FUNCIONAR NO EASYPANEL ---
+# --- ESTAS SÃO AS LINHAS ESSENCIAIS PARA O PRISMA NO EASYPANEL ---
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# -----------------------------------------------------------
+# ---------------------------------------------------------------
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -44,5 +44,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Garante que o banco de dados esteja atualizado antes de ligar o site
+# 3. Comando para atualizar as tabelas do banco e ligar o servidor
 CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
