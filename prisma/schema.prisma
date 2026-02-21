@@ -1,0 +1,53 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/mei_saas_system/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model MeiProfile {
+  id                   Int      @id @default(autoincrement())
+  nome                 String
+  nomeFantasia         String?  @map("nome_fantasia")
+  cpf                  String   @unique
+  cnpj                 String   @unique
+  cnae                 String?
+  tipoAtividade        String   @map("tipo_atividade")
+  percentualPresuncao  Float    @map("percentual_presuncao")
+  rua                  String?
+  numero               String?
+  complemento          String?
+  bairro               String?
+  cidade               String?
+  estado               String?
+  cep                  String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("mei_profile")
+}
+
+model Receita {
+  id        Int      @id @default(autoincrement())
+  data      DateTime
+  descricao String
+  valor     Float
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("receitas")
+}
+
+model Despesa {
+  id        Int      @id @default(autoincrement())
+  data      DateTime
+  descricao String
+  valor     Float
+  tipo      String   @default("variavel")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("despesas")
+}
