@@ -1,33 +1,17 @@
-FROM node:18-alpine AS base
-
-RUN apk add --no-cache libc6-compat openssl
-
-WORKDIR /app
-
-FROM base AS deps
-COPY package.json ./
-COPY prisma ./prisma/
-
-RUN npm install --legacy-peer-deps
+# ... (partes anteriores iguais)
 
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Verifique se o schema.prisma está presente
-RUN ls -la prisma/
-
-# Gere o cliente Prisma
+# IMPORTANTE: Gerar o prisma antes do build
 RUN npx prisma generate
 
-# Verifique se o cliente Prisma foi gerado
-RUN ls -la node_modules/.prisma/client/
-
 ENV NEXT_TELEMETRY_DISABLED=1
+# O Easypanel geralmente lida com as ENVs, mas garantir aqui ajuda no build
 ENV NEXT_OUTPUT_MODE=standalone
 
-# Construa o projeto
 RUN npm run build
 
 FROM base AS runner
@@ -39,18 +23,21 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# Copia o necessário para o Prisma funcionar em runtime
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+# Copia o standalone e static
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 USER nextjs
 
 EXPOSE 3000
-
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# No Easypanel, certifique-se que a DATABASE_URL está nas Environment Variables do painel
 CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
